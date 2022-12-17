@@ -3,21 +3,18 @@ import { useDispatch } from 'react-redux'
 import { useSelector } from 'react-redux'
 import { useHistory, useParams } from 'react-router-dom'
 import { schema } from '../../utils/schema'
-import { postActions } from './postSlice'
+import { postActions, selectPostById } from './postSlice'
 
 export const EditPostForm = () => {
   const { postId } = useParams()
   const dispatch = useDispatch()
   const history = useHistory()
-  const post = useSelector((state) =>
-    state.posts.find((post) => post.id === postId)
-  )
+  const post = useSelector((state) => selectPostById(state, postId))
   console.log(post)
   //   console.log(postId, 'POSTID')
   const submitForm = (values) => {
-    console.log(values)
     // const id = postId
-    dispatch(postActions.postUpdated({ ...values }))
+    dispatch(postActions.postUpdated({ ...values, id: postId }))
     history.push(`/posts/${postId}`)
   }
 

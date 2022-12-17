@@ -1,23 +1,25 @@
 import { useFormik } from 'formik'
+import { useState } from 'react'
+import { useSelector } from 'react-redux'
 import { useDispatch } from 'react-redux'
 import { schema } from '../../utils/schema'
-import { postActions } from './postSlice'
-import uuid from 'react-uuid'
+import { addNewPost} from './postSlice'
 
 export const AddPostForm = () => {
   const dispatch = useDispatch()
-  const submitForm = (values) => {
-    // const addPost = { ...values, id: uuid() }
-    // const addPost = { ...values }
-    // dispatch(postActions.postAdded(addPost))
-    // dispatch(postActions.postAdded({ title, content }))
-    dispatch(postActions.postAdded(values))
-  }
+  const users = useSelector((state) => state.users)
+  const [reqStatus, setReqStatus] = useState('idle')
 
+  const usersOptions = users.map((user) => (
+    <option key={user.id} value={user.id}>
+      {user.name}
+    </option>
+  ))
   const formik = useFormik({
     initialValues: {
       title: '',
       content: '',
+      userId: '',
     },
     validationSchema: schema,
     onSubmit: (values) => {
@@ -25,6 +27,30 @@ export const AddPostForm = () => {
       submitForm(values)
     },
   })
+
+  const canSave =
+    Boolean(formik.values.title) &&
+    Boolean(formik.values.content) &&
+    Boolean(formik.values.userId) &&
+    reqStatus === 'idle'
+
+  const submitForm = async (values) => {
+    if (canSave) {
+      try {
+        setReqStatus('pending')
+        await dispatch(
+          addNewPost({ ...values, user: formik.values.userId })
+        ).unwrap()
+        formik.values.title = ''
+        formik.values.content = ''
+        formik.values.userId = ''
+      } catch (err) {
+        console.log('Failed to save post')
+      } finally {
+        setReqStatus('idle')
+      }
+    }
+  }
 
   return (
     <section>
@@ -49,7 +75,6 @@ export const AddPostForm = () => {
         <textarea
           id="postContent"
           name="content"
-          //   onChange={formik.handleChange}
           value={formik.values.content}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
@@ -59,7 +84,14 @@ export const AddPostForm = () => {
         ) : (
           ''
         )}
-        <button type="submit">Save Post</button>
+        <label htmlFor="postAuthor">Author</label>
+        <select name="userId" id="postAuthor" onChange={formik.handleChange}>
+          <option value=""></option>
+          {usersOptions}
+        </select>
+        <button type="submit" disabled={!canSave}>
+          Save Post
+        </button>
       </form>
     </section>
   )
