@@ -1,10 +1,6 @@
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { Link } from 'react-router-dom'
-import { PostAuthor } from './PostAuthor'
 import { fetchPosts, selectAllPosts } from './postSlice'
-import { ReactionButton } from './ReactionButton'
-import { TimeAgo } from './TimeAgo'
 import { Spinner } from '../../components/Spinner'
 import { PostExcerpt } from './PostExcerpt'
 
