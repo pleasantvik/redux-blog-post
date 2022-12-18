@@ -1,11 +1,23 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
+import {
+  createAsyncThunk,
+  createEntityAdapter,
+  createSelector,
+  createSlice,
+} from '@reduxjs/toolkit'
 import { client } from '../../api/client'
 
-const initialState = {
-  posts: [],
+// Use createEntityAdapter to sort the order by using the date in post
+const postAdapter = createEntityAdapter({
+  sortComparer: (a, b) => b.date.localeCompare(a.date),
+})
+
+// getInitialState() returns an empty {ids:[], entities:{}} normalized state object
+// This keep our post as lookup table in state.entities
+const initialState = postAdapter.getInitialState({
+  // posts: [],
   status: 'idle',
   error: null,
-}
+})
 
 export const fetchPosts = createAsyncThunk('posts/fetchposts', async () => {
   const response = await client.get('/fakeApi/posts')
@@ -52,7 +64,9 @@ const postSlice = createSlice({
     // },
     postUpdated: (state, action) => {
       const { id, title, content } = action.payload
-      const existingPost = state.posts.find((post) => post.id === id)
+      // const existingPost = state.posts.find((post) => post.id === id)
+      // We can look up the right pos by directly with their Ids instead of looping over each one
+      const existingPost = state.entities[id]
 
       if (existingPost) {
         existingPost.title = title
@@ -61,7 +75,8 @@ const postSlice = createSlice({
     },
     reactionAdded: (state, action) => {
       const { postId, reaction } = action.payload
-      const existingPost = state.posts.find((post) => post.id === postId)
+      // const existingPost = state.posts.find((post) => post.id === postId)
+      const existingPost = state.entities[postId]
 
       if (existingPost) {
         existingPost.reactions[reaction]++
@@ -76,21 +91,37 @@ const postSlice = createSlice({
       })
       .addCase(fetchPosts.fulfilled, (state, action) => {
         state.status = 'success'
-        state.posts = state.posts.concat(action.payload)
+        // state.posts = state.posts.concat(action.payload)
+        //upsertMany helps to add incoming posts to state
+        postAdapter.upsertMany(state, action.payload)
       })
       .addCase(fetchPosts.rejected, (state, action) => {
         state.status = 'failed'
         state.error = action.error.message
       })
-      .addCase(addNewPost.fulfilled, (state, action) => {
-        state.posts.push(action.payload)
-      })
+      // .addCase(addNewPost.fulfilled, (state, action) => {
+      //   state.posts.push(action.payload)
+      // })
+
+      // addOne function add a single post
+      .addCase(addNewPost.fulfilled, postAdapter.addOne)
   },
 })
 
-export const selectAllPosts = (state) => state.posts.posts
-export const selectPostById = (state, postId) =>
-  state.posts.posts.find((post) => post.id === postId)
-// export const postReducer = postSlice.reducer
+// The adapter returns selectAll, selectById, selectIds selectors geneeratted automaticlaly
+export const {
+  selectAll: selectAllPosts,
+  selectById: selectPostById,
+  selectIds: selectPostIds,
+} = postAdapter.getSelectors((state) => state.posts)
+
+// export const selectAllPosts = (state) => state.posts.posts
+// export const selectPostById = (state, postId) =>
+//   state.posts.posts.find((post) => post.id === postId)
+
+export const selectPostsByUser = createSelector(
+  [selectAllPosts, (state, userId) => userId],
+  (posts, userId) => posts.filter((post) => post.user === userId)
+)
 export const postActions = postSlice.actions
 export const postReducer = postSlice.reducer
